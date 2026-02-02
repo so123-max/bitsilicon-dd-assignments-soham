@@ -1,49 +1,49 @@
-module control_fsm (
-    input  wire clk,
-    input  wire rst_n,        // active-low reset
-    input  wire start,
-    input  wire stop,
-    input  wire reset,
-    output reg  count_enable,
-    output reg  [1:0] state
+module process_manager (
+    input  wire i_clock,
+    input  wire i_async_rst_n,
+    input  wire i_soft_reset,
+    input  wire i_trigger_run,
+    input  wire i_trigger_halt,
+    output reg  o_enable_sig,
+    output reg  [1:0] r_current_state
 );
 
-localparam IDLE    = 2'b00;
-localparam RUNNING = 2'b01;
-localparam PAUSED  = 2'b10;
+localparam S_READY     = 2'b00;
+localparam S_OPERATING = 2'b01;
+localparam S_SUSPENDED = 2'b10;
 
-always @(posedge clk) begin
-    if (!rst_n) begin
-        state <= IDLE;
-    end else if (reset) begin
-        state <= IDLE;
+always @(posedge i_clock) begin
+    if (!i_async_rst_n) begin
+        r_current_state <= S_READY;
+    end else if (i_soft_reset) begin
+        r_current_state <= S_READY;
     end else begin
-        case (state)
-            IDLE: begin
-                if (start)
-                    state <= RUNNING;
+        case (r_current_state)
+            S_READY: begin
+                if (i_trigger_run)
+                    r_current_state <= S_OPERATING;
             end
 
-            RUNNING: begin
-                if (stop)
-                    state <= PAUSED;
+            S_OPERATING: begin
+                if (i_trigger_halt)
+                    r_current_state <= S_SUSPENDED;
             end
 
-            PAUSED: begin
-                if (start)
-                    state <= RUNNING;
+            S_SUSPENDED: begin
+                if (i_trigger_run)
+                    r_current_state <= S_OPERATING;
             end
 
-            default: state <= IDLE;
+            default: r_current_state <= S_READY;
         endcase
     end
 end
 
 always @(*) begin
-    if (state == RUNNING)
-        count_enable = 1'b1;
+    if (r_current_state == S_OPERATING)
+        o_enable_sig = 1'b1;
     else
-        count_enable = 1'b0;
+        o_enable_sig = 1'b0;
 end
 
 endmodule
